@@ -12,7 +12,7 @@ logging.basicConfig(level=logging.INFO)
 def test_e2e_checkout_success():
     logging.info("TestRail ID: 1510 - E2E checkout success started")
 
-    cart = add_item([], 'apple')
+    cart = add_item([], 'airoplane')
     assert checkout(cart)
     assert create_order(cart)['status'] == 'CREATED'
 
