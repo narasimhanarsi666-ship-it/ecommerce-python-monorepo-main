@@ -12,6 +12,7 @@ jobs:
   detect-and-continue:
     docker:
       - image: cimg/python:3.10
+
     steps:
       - checkout
 
@@ -19,7 +20,7 @@ jobs:
           configuration_path: .circleci/continue.yml
 
   # ---------------------------------------------
-  # Step 2: Run ONLY Changed Tests + Save Artifacts
+  # Step 2: Run Changed Tests + Always Run E2E Suite
   # ---------------------------------------------
   run-tests-and-save-artifacts:
     docker:
@@ -42,32 +43,38 @@ jobs:
             echo "Fetching main branch..."
             git fetch origin main
 
-            echo "Finding changed test files in PR..."
+            echo "Finding changed test files in this PR..."
 
-            # Only take changed python test files inside tests/
+            # Only include changed python test files inside tests/
             CHANGED_TEST_FILES=$(git diff --name-only origin/main...HEAD | grep "^tests/.*\.py" || true)
 
             echo "Changed Test Files:"
             echo "$CHANGED_TEST_FILES"
 
-            # Save into file for next step
+            # Save list into artifact file
             echo "$CHANGED_TEST_FILES" > changed_tests.txt
 
-      # ✅ Run pytest ONLY on changed test files
+      # ✅ Run Changed Tests + Always Run E2E Regression
       - run:
-          name: Run Only Changed Tests
+          name: Run Changed Tests + E2E Suite
           command: |
             echo "Running pytest..."
 
             if [ ! -s changed_tests.txt ]; then
-              echo "No test files changed in this PR."
-              echo "Running full test suite instead..."
+              echo "No test files changed in PR."
+              echo "Running FULL test suite..."
+
               pytest tests/ > pytest.log 2>&1 || true
+
             else
-              echo "Running ONLY changed test files:"
+              echo "Running ONLY changed test files + E2E regression..."
+
+              echo "Changed tests:"
               cat changed_tests.txt
 
-              pytest $(cat changed_tests.txt) > pytest.log 2>&1 || true
+              echo "Including E2E tests always..."
+              pytest $(cat changed_tests.txt) tests/e2e/ \
+                > pytest.log 2>&1 || true
             fi
 
       # ✅ Store pytest log artifact
@@ -75,7 +82,7 @@ jobs:
           path: pytest.log
           destination: pytest.log
 
-      # ✅ Store list of changed test files as artifact
+      # ✅ Store changed test file list artifact
       - store_artifacts:
           path: changed_tests.txt
           destination: changed_tests.txt
