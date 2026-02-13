@@ -1,7 +1,7 @@
 version: 2.1
 
 jobs:
-  run-tests-and-save-artifacts:
+  pytest-runner:
     docker:
       - image: cimg/python:3.10
 
@@ -15,13 +15,12 @@ jobs:
             pip install -r requirements.txt
             pip install pytest
 
-      # ✅ Detect Changed Test Files
+      # ✅ Detect changed test files
       - run:
           name: Detect Changed Test Files
           command: |
             git fetch origin main
 
-            # Only test files changed in PR
             CHANGED_TEST_FILES=$(git diff --name-only origin/main...HEAD | grep "^tests/.*\.py" || true)
 
             echo "$CHANGED_TEST_FILES" > changed_tests.txt
@@ -29,20 +28,21 @@ jobs:
             echo "Changed test files:"
             cat changed_tests.txt
 
-      # ✅ Run ONLY Changed Tests (No extra folders)
+      # ✅ Run pytest EXACTLY like terminal runner + Save pytest.log
       - run:
-          name: Run ONLY Changed Tests
+          name: Run Pytest (Exact Runner Output)
           command: |
-            echo "Running pytest..."
+            echo "============================= pytest runner ============================="
 
             if [ ! -s changed_tests.txt ]; then
               echo "No changed test files → running full suite"
-              pytest tests/ > pytest.log 2>&1 || true
+              pytest tests/ 2>&1 | tee pytest.log
             else
-              echo "Running ONLY these files:"
+              echo "Running ONLY changed test files:"
               cat changed_tests.txt
 
-              pytest $(cat changed_tests.txt) > pytest.log 2>&1 || true
+              # ✅ This matches: pytest tests/test_sample.py
+              pytest $(cat changed_tests.txt) 2>&1 | tee pytest.log
             fi
 
       # ✅ Store pytest.log artifact
@@ -50,7 +50,7 @@ jobs:
           path: pytest.log
           destination: pytest.log
 
-      # ✅ Store changed test list artifact
+      # ✅ Store changed test file list artifact
       - store_artifacts:
           path: changed_tests.txt
           destination: changed_tests.txt
@@ -58,4 +58,4 @@ jobs:
 workflows:
   pr-workflow:
     jobs:
-      - run-tests-and-save-artifacts
+      - pytest-runner
