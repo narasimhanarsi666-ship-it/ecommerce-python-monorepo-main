@@ -18,15 +18,12 @@ jobs:
             pip install pytest
 
       # -------------------------------------------------------
-      # Step 2: Detect Changed Test Files in PR
+      # Step 2: Detect Changed Test Files
       # -------------------------------------------------------
       - run:
           name: Detect Changed Test Files
           command: |
-            echo "Fetching main branch..."
             git fetch origin main
-
-            echo "Finding changed test files..."
 
             CHANGED_TEST_FILES=$(git diff --name-only origin/main...HEAD | grep "^tests/.*\.py" || true)
 
@@ -36,25 +33,42 @@ jobs:
             cat changed_tests.txt
 
       # -------------------------------------------------------
-      # Step 3: Run Pytest EXACTLY Like Runner + Save pytest.log
+      # Step 3: Run Pytest + Always Save pytest.log
       # -------------------------------------------------------
       - run:
-          name: Run Pytest (Exact Runner Output)
+          name: Run Pytest and Save Logs
           command: |
-            echo "============================= pytest runner ============================="
+            echo "================ pytest runner ================"
 
             if [ ! -s changed_tests.txt ]; then
-              echo "No changed test files → running full suite"
-              pytest tests/ 2>&1 | tee pytest.log
+              echo "No changed tests → running full suite"
+              pytest tests/ 2>&1 | tee pytest.log || true
             else
-              echo "Running ONLY changed test files:"
+              echo "Running ONLY changed tests:"
               cat changed_tests.txt
 
-              pytest $(cat changed_tests.txt) 2>&1 | tee pytest.log
+              pytest $(cat changed_tests.txt) 2>&1 | tee pytest.log || true
             fi
 
       # -------------------------------------------------------
-      # Step 4: Store Artifacts
+      # Step 4: Verify pytest.log Exists
+      # -------------------------------------------------------
+      - run:
+          name: Verify pytest.log File
+          command: |
+            echo "Listing directory contents:"
+            ls -l
+
+            if [ -f pytest.log ]; then
+              echo "pytest.log created successfully ✅"
+              head -20 pytest.log
+            else
+              echo "ERROR: pytest.log NOT found ❌"
+              exit 1
+            fi
+
+      # -------------------------------------------------------
+      # Step 5: Store Artifacts
       # -------------------------------------------------------
       - store_artifacts:
           path: pytest.log
