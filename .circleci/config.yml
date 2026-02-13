@@ -8,18 +8,25 @@ jobs:
     steps:
       - checkout
 
-      # ✅ Install dependencies
+      # -------------------------------------------------------
+      # Step 1: Install Dependencies
+      # -------------------------------------------------------
       - run:
           name: Install Dependencies
           command: |
             pip install -r requirements.txt
             pip install pytest
 
-      # ✅ Detect changed test files
+      # -------------------------------------------------------
+      # Step 2: Detect Changed Test Files in PR
+      # -------------------------------------------------------
       - run:
           name: Detect Changed Test Files
           command: |
+            echo "Fetching main branch..."
             git fetch origin main
+
+            echo "Finding changed test files..."
 
             CHANGED_TEST_FILES=$(git diff --name-only origin/main...HEAD | grep "^tests/.*\.py" || true)
 
@@ -28,7 +35,9 @@ jobs:
             echo "Changed test files:"
             cat changed_tests.txt
 
-      # ✅ Run pytest EXACTLY like terminal runner + Save pytest.log
+      # -------------------------------------------------------
+      # Step 3: Run Pytest EXACTLY Like Runner + Save pytest.log
+      # -------------------------------------------------------
       - run:
           name: Run Pytest (Exact Runner Output)
           command: |
@@ -41,16 +50,16 @@ jobs:
               echo "Running ONLY changed test files:"
               cat changed_tests.txt
 
-              # ✅ This matches: pytest tests/test_sample.py
               pytest $(cat changed_tests.txt) 2>&1 | tee pytest.log
             fi
 
-      # ✅ Store pytest.log artifact
+      # -------------------------------------------------------
+      # Step 4: Store Artifacts
+      # -------------------------------------------------------
       - store_artifacts:
           path: pytest.log
           destination: pytest.log
 
-      # ✅ Store changed test file list artifact
       - store_artifacts:
           path: changed_tests.txt
           destination: changed_tests.txt
