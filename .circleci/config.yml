@@ -8,8 +8,10 @@ jobs:
   detect-and-continue:
     docker:
       - image: cimg/python:3.10
+
     steps:
       - checkout
+
       - continuation/continue:
           configuration_path: .circleci/continue.yml
 
