@@ -8,43 +8,34 @@ jobs:
     steps:
       - checkout
 
-      # Install deps
       - run:
           name: Install Dependencies
           command: |
             pip install -r requirements.txt
             pip install pytest
 
-      # Detect changed test files correctly
       - run:
-          name: Detect Changed Tests in PR
+          name: Detect Changed Tests Correctly
           command: |
-            echo "Fetching full git history..."
-            git fetch --unshallow || true
             git fetch origin main
 
-            echo "Detecting changed test files..."
-
-            CHANGED_TEST_FILES=$(git diff --name-only origin/main...HEAD | grep "^tests/.*\.py" || true)
+            CHANGED_TEST_FILES=$(git diff --name-only HEAD~1 HEAD | grep "^tests/.*\.py" || true)
 
             echo "$CHANGED_TEST_FILES" > changed_tests.txt
 
-            echo "Changed tests:"
+            echo "Changed test files:"
             cat changed_tests.txt
 
-      # Run only changed tests
       - run:
-          name: Run Pytest Only Changed Files
+          name: Run ONLY Changed Tests
           command: |
             if [ ! -s changed_tests.txt ]; then
-              echo "No changed test files → skipping test run"
-              echo "NO_TESTS_CHANGED" > pytest.log
-            else
-              echo "Running ONLY changed test files:"
-              pytest $(cat changed_tests.txt) 2>&1 | tee pytest.log || true
+              echo "No changed test files"
+              exit 0
             fi
 
-      # Upload artifact
+            pytest $(cat changed_tests.txt) 2>&1 | tee pytest.log || true
+
       - store_artifacts:
           path: pytest.log
           destination: pytest.log
