@@ -8,34 +8,65 @@ jobs:
     steps:
       - checkout
 
+      # -------------------------------------------------------
+      # Step 1: Install Dependencies
+      # -------------------------------------------------------
       - run:
           name: Install Dependencies
           command: |
             pip install -r requirements.txt
             pip install pytest
 
+      # -------------------------------------------------------
+      # Step 2: Detect Changed Test Files (PR Only)
+      # -------------------------------------------------------
       - run:
-          name: Detect Changed Tests Correctly
+          name: Detect Changed Test Files
           command: |
+            echo "Fetching main branch..."
             git fetch origin main
 
-            CHANGED_TEST_FILES=$(git diff --name-only HEAD~1 HEAD | grep "^tests/.*\.py" || true)
+            echo "Detecting changed test files..."
+
+            # ✅ Detect only changed python tests
+            CHANGED_TEST_FILES=$(git diff --name-only origin/main...HEAD | grep "^tests/.*\.py" || true)
 
             echo "$CHANGED_TEST_FILES" > changed_tests.txt
 
             echo "Changed test files:"
             cat changed_tests.txt
 
+      # -------------------------------------------------------
+      # Step 3: Run ONLY Changed Tests (Ignore pytest.ini)
+      # -------------------------------------------------------
       - run:
-          name: Run ONLY Changed Tests
+          name: Run ONLY Changed Tests (Exact Runner Output)
           command: |
             if [ ! -s changed_tests.txt ]; then
-              echo "No changed test files"
+              echo "No changed test files found → skipping pytest run"
+              echo "NO_TESTS_CHANGED" > pytest.log
               exit 0
             fi
 
-            pytest $(cat changed_tests.txt) 2>&1 | tee pytest.log || true
+            echo "🚀 Running ONLY these tests:"
+            cat changed_tests.txt
 
+            # ✅ Ignore pytest.ini (prevents running services/ tests)
+            pytest -c /dev/null $(cat changed_tests.txt) 2>&1 | tee pytest.log || true
+
+      # -------------------------------------------------------
+      # Step 4: Verify pytest.log Exists
+      # -------------------------------------------------------
+      - run:
+          name: Verify pytest.log
+          command: |
+            echo "Checking pytest.log..."
+            ls -l pytest.log
+            head -20 pytest.log
+
+      # -------------------------------------------------------
+      # Step 5: Store Artifacts
+      # -------------------------------------------------------
       - store_artifacts:
           path: pytest.log
           destination: pytest.log
