@@ -1,2 +1,1 @@
-tests/test_sample.py
 tests/integration/test_integration_in/test_code.py
