@@ -18,17 +18,19 @@ jobs:
             pip install pytest
 
       # -------------------------------------------------------
-      # Step 2: Detect Changed Test Files in PR
+      # Step 2: Detect ONLY Changed Test Files in PR (Accurate)
       # -------------------------------------------------------
       - run:
-          name: Detect Changed Test Files
+          name: Detect Changed Test Files (PR Only)
           command: |
             echo "Fetching main branch..."
             git fetch origin main
 
-            echo "Detecting changed python test files..."
+            echo "Finding merge-base..."
+            BASE=$(git merge-base origin/main HEAD)
 
-            CHANGED_TEST_FILES=$(git diff --name-only origin/main...HEAD | grep "^tests/.*\.py" || true)
+            echo "Detecting changed python test files..."
+            CHANGED_TEST_FILES=$(git diff --name-only $BASE HEAD | grep "^tests/.*\.py" || true)
 
             echo "$CHANGED_TEST_FILES" > changed_tests.txt
 
@@ -36,10 +38,10 @@ jobs:
             cat changed_tests.txt
 
       # -------------------------------------------------------
-      # Step 3: Run ONLY Changed Tests (Imports Fixed)
+      # Step 3: Run ONLY Changed Tests + Save Exact Output
       # -------------------------------------------------------
       - run:
-          name: Run ONLY Changed Tests (Exact Runner Output)
+          name: Run ONLY Changed Tests (Exact pytest runner output)
           command: |
             if [ ! -s changed_tests.txt ]; then
               echo "No changed test files found → skipping pytest run"
@@ -47,22 +49,22 @@ jobs:
               exit 0
             fi
 
-            echo "🚀 Running ONLY these tests:"
+            echo "🚀 Running ONLY these test files:"
             cat changed_tests.txt
 
-            # ✅ Fix Python imports (services module)
+            # ✅ Fix module imports (services package)
             export PYTHONPATH=$PWD
 
-            # ✅ Run ONLY changed test files
+            # ✅ Run only changed files and store exact output
             pytest $(cat changed_tests.txt) 2>&1 | tee pytest.log || true
 
       # -------------------------------------------------------
-      # Step 4: Verify pytest.log Exists
+      # Step 4: Verify pytest.log Created
       # -------------------------------------------------------
       - run:
           name: Verify pytest.log
           command: |
-            echo "Checking pytest.log file..."
+            echo "pytest.log created successfully:"
             ls -l pytest.log
             head -20 pytest.log
 
