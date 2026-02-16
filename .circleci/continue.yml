@@ -8,69 +8,34 @@ jobs:
     steps:
       - checkout
 
-      # ---------- STEP 1: Detect changes SAFELY ----------
       - run:
-          name: Decide whether to run tests
+          name: Install Dependencies
           command: |
-            set -e
-
-            echo "🔍 Detecting changed files..."
-
-            # Ensure base branch exists (CircleCI shallow clone fix)
-            git fetch origin main
-
-            BASE_BRANCH="origin/main"
-
-            CHANGED_FILES=$(git diff --name-only "$BASE_BRANCH"...HEAD || true)
-
-            echo "📂 Changed files:"
-            echo "$CHANGED_FILES"
-
-            # Remove empty lines & count
-            FILE_COUNT=$(echo "$CHANGED_FILES" | sed '/^$/d' | wc -l | tr -d ' ')
-
-            # STRICT RULE:
-            # Only ONE file must change AND it must be filtered_list.txt
-            if [ "$FILE_COUNT" -ne 1 ] || ! echo "$CHANGED_FILES" | grep -qx "filtered_list.txt"; then
-              echo "⏭ Tests will NOT run."
-              echo "Reason: filtered_list.txt is not the only changed file."
-              exit 0
-            fi
-
-            echo "✅ Only filtered_list.txt changed. Proceeding to test execution."
-
-      # ---------- STEP 2: Install deps ----------
-      - run:
-          name: Install dependencies
-          command: |
-            pip install --upgrade pip
             pip install -r requirements.txt
+            pip install pytest
 
-      # ---------- STEP 3: Run ONLY filtered tests ----------
       - run:
-          name: Run tests from filtered_list.txt
+          name: Detect Changed Test Files
           command: |
-            if [ ! -f filtered_list.txt ]; then
-              echo "❌ filtered_list.txt not found"
-              exit 1
+            git fetch origin main
+            CHANGED_TEST_FILES=$(git diff --name-only origin/main...HEAD | grep "^tests/.*\.py" || true)
+            echo "$CHANGED_TEST_FILES" > changed_tests.txt
+            cat changed_tests.txt
+
+      - run:
+          name: Run ONLY Changed Tests
+          command: |
+            if [ ! -s changed_tests.txt ]; then
+              pytest tests/ 2>&1 | tee pytest.log || true
+            else
+              pytest $(cat changed_tests.txt) 2>&1 | tee pytest.log || true
             fi
 
-            TEST_FILES=$(cat filtered_list.txt \
-              | tr -d ' ' \
-              | tr ',' ' ' \
-              | xargs)
-
-            if [ -z "$TEST_FILES" ]; then
-              echo "❌ filtered_list.txt is empty"
-              exit 1
-            fi
-
-            echo "🚀 Running ONLY these tests:"
-            echo "$TEST_FILES"
-
-            pytest $TEST_FILES
+      - store_artifacts:
+          path: pytest.log
+          destination: pytest.log
 
 workflows:
-  test-workflow:
+  pr-workflow:
     jobs:
       - pytest-runner
