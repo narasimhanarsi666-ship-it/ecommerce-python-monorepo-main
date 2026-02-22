@@ -18,7 +18,7 @@ jobs:
           configuration_path: .circleci/continue.yml
 
   # -----------------------------------
-  # Pytest Runner Job (runs tests and stores only pytest.log)
+  # Step 2: Pytest Runner Job
   # -----------------------------------
   pytest-runner:
     docker:
@@ -33,17 +33,17 @@ jobs:
             pip install -r requirements.txt
             pip install pytest
 
-      # Run pytest and save logs
+      # Run pytest and save log
       - run:
           name: Run Pytest
           command: |
             echo "Running pytest..."
             pytest tests/ > pytest.log 2>&1 || true
 
-      # Upload only pytest.log artifact
+      # Upload only pytest.log as artifact
       - store_artifacts:
           path: pytest.log
-          destination: pytest.log
+          destination: pytest-runner/pytest.log
 
 workflows:
   setup-workflow:
