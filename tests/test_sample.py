@@ -1,5 +1,6 @@
 import pytest
 import logging
+import time
 from services.cart.service import add_item
 from services.checkout.service import checkout
 
