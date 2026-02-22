@@ -6,9 +6,6 @@ orbs:
   continuation: circleci/continuation@0.4.0
 
 jobs:
-  # -----------------------------------
-  # Step 1: Continuation Setup Job
-  # -----------------------------------
   detect-and-continue:
     docker:
       - image: cimg/python:3.10
@@ -17,36 +14,30 @@ jobs:
       - continuation/continue:
           configuration_path: .circleci/continue.yml
 
-  # -----------------------------------
-  # Step 2: Pytest Runner Job
-  # -----------------------------------
   pytest-runner:
     docker:
       - image: cimg/python:3.10
     steps:
       - checkout
 
-      # Install dependencies
       - run:
           name: Install Dependencies
           command: |
             pip install -r requirements.txt
             pip install pytest
 
-      # Run pytest and save log
       - run:
           name: Run Pytest
           command: |
             echo "Running pytest..."
             pytest tests/ > pytest.log 2>&1 || true
 
-      # Upload only pytest.log as artifact
       - store_artifacts:
           path: pytest.log
-          destination: pytest-runner/pytest.log
+          destination: pytest.log
 
 workflows:
-  setup-workflow:
+  build-and-test:
     jobs:
       - detect-and-continue
       - pytest-runner:
